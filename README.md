@@ -34,6 +34,11 @@ ComfyUI Node MTY 是一个为 ComfyUI 设计的自定义节点集合，主要用
 
 4. 重启 ComfyUI。
 
+可选，将zh-CN\Nodes\comfyui_node_mty.json拷贝到.\ComfyUI\custom_nodes\AIGODLIKE-ComfyUI-Translation\zh-CN\Nodes\comfyui_node_mty.json
+来使用中文翻译。
+因为我自己暂未实现节点自带翻译，就用AIGODLIKE来翻译了。
+
+
 ## 使用方法
 
 ### OpenAI API 节点

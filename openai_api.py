@@ -1,4 +1,3 @@
-import os
 import json
 import base64
 import openai
@@ -6,8 +5,10 @@ from PIL import Image
 import io
 import numpy as np
 import torch
+import os
+import uuid
 
-class OpenAINode:
+class APISettingsNode:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -15,60 +16,208 @@ class OpenAINode:
                 "use_env_vars": ("BOOLEAN", {"default": False}),
                 "base_url": ("STRING", {"default": "https://api.openai.com/v1"}),
                 "api_key": ("STRING", {"default": ""}),
-                "model": ("STRING", {"default": "gpt-4-vision-preview"}),
+            }
+        }
+
+    RETURN_TYPES = ("API_SETTINGS",)
+    RETURN_NAMES = ("api_settings",)
+    FUNCTION = "get_api_settings"
+    CATEGORY = "mty🦉node/🦉openai_api"
+
+    def get_api_settings(self, use_env_vars, base_url, api_key):
+        if use_env_vars:
+            import os
+            base_url = os.getenv('OPENAI_API_BASE', base_url)
+            api_key = os.getenv('OPENAI_API_KEY', api_key)
+
+        if not base_url.endswith('/v1'):
+            base_url = base_url.rstrip('/') + '/v1'
+
+        return ({
+            "use_env_vars": use_env_vars,
+            "base_url": base_url,
+            "api_key": api_key,
+        },)
+
+class OpenAINode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "api_settings": ("API_SETTINGS",),
+                "model": ("STRING", {
+                    "default": "gpt-4o", 
+                    "multiline": False,
+                    "placeholder": "输入模型名称，如 gpt-4o, gemini-1.5-flash-exp-0827 等"
+                }),
+                "prompt": ("STRING", {"multiline": True}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0, "max": 2, "step": 0.1}),
-                "max_tokens": ("INT", {"default": 300, "min": 1, "max": 16384}),
-                "system_prompt": ("STRING", {"multiline": True}),
-                "user_input": ("STRING", {"multiline": True}),
+                "max_tokens": ("INT", {"default": 512, "min": 1, "max": 16384}),
             },
             "optional": {
+                "system_prompt": ("STRING", {"multiline": True}),
                 "history": ("HISTORY",),
                 "image": ("IMAGE",),
             }
         }
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("text",)
-    FUNCTION = "run"
+    RETURN_NAMES = ("response",)
+    FUNCTION = "generate"
     CATEGORY = "mty🦉node/🦉openai_api"
 
-    def run(self, use_env_vars, base_url, api_key, model, temperature, max_tokens, user_input, system_prompt=None, history=None, image=None):
-        if use_env_vars:
-            base_url = os.getenv('OPENAI_API_BASE', base_url)
-            api_key = os.getenv('OPENAI_API_KEY')
-            if not api_key:
-                return ("Error: OPENAI_API_KEY not found in environment variables.",)
-
-        # 确保 base_url 以 '/v1' 结尾
-        if not base_url.endswith('/v1'):
-            base_url = base_url.rstrip('/') + '/v1'
-
+    def generate(self, api_settings, model, prompt, temperature, max_tokens, system_prompt=None, history=None, image=None):
         client = openai.OpenAI(
-            base_url=base_url,
-            api_key=api_key
+            base_url=api_settings["base_url"],
+            api_key=api_settings["api_key"]
         )
 
         messages = []
-        
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-
         if history:
             try:
-                history_list = json.loads(history)
-                for msg in history_list:
-                    if not isinstance(msg, dict) or 'role' not in msg or 'content' not in msg:
-                        raise ValueError("Invalid history format")
-                messages.extend(history_list)
+                messages.extend(json.loads(history))
             except json.JSONDecodeError:
-                return ("Error: Invalid JSON in history",)
-            except ValueError as e:
-                return (f"Error in history format: {str(e)}",)
+                pass
 
+        if image is not None:
+            image_content = self.encode_image(image)
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_content}"}}
+                ]
+            })
+        else:
+            messages.append({"role": "user", "content": prompt})
+
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            return (response.choices[0].message.content,)
+        except Exception as e:
+            return (f"Error: {str(e)}",)
+
+
+
+    @staticmethod
+    def encode_image(image):
+        try:
+            if torch.is_tensor(image):
+                image = image.cpu().numpy()
+
+            if len(image.shape) == 4:
+                image = image[0]
+            
+            if len(image.shape) == 2:
+                image = np.expand_dims(image, axis=-1)
+            
+            if image.shape[-1] == 1:
+                image = np.repeat(image, 3, axis=-1)
+            elif image.shape[-1] == 4:
+                image = image[..., :3]
+            elif image.shape[-1] != 3:
+                raise ValueError(f"Unsupported number of channels: {image.shape[-1]}")
+
+            if image.dtype != np.uint8:
+                if image.max() <= 1.0:
+                    image = (image * 255).astype(np.uint8)
+                else:
+                    image = image.astype(np.uint8)
+
+            img = Image.fromarray(image)
+
+            buffered = io.BytesIO()
+            img.save(buffered, format="JPEG", quality=95)
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            
+            return img_str
+        except Exception as e:
+            raise ValueError(f"Image encoding failed: {str(e)}")
+
+
+class OpenAIChatNode:
+    def __init__(self):
+        self.client = None
+        self.node_id = str(uuid.uuid4())
+        self.cache_dir = "chat_cache"
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+        self.cache_file = os.path.join(self.cache_dir, f"chat_history_{self.node_id}.json")
+        self.system_prompt = None
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "api_settings": ("API_SETTINGS",),
+                "model": ("STRING", {
+                    "default": "gpt-4o", 
+                    "multiline": False,
+                    "placeholder": "输入模型名称，如 gpt-4o, gemini-1.5-flash-exp-0827 等"
+                }),
+                "user_input": ("STRING", {"multiline": True}),
+                "temperature": ("FLOAT", {"default": 0.7, "min": 0, "max": 2, "step": 0.1}),
+                "max_tokens": ("INT", {"default": 512, "min": 1, "max": 16384}),
+                "clear_history": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "system_prompt": ("STRING", {"multiline": True}),
+                "external_history": ("HISTORY",),
+                "image": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "HISTORY")
+    RETURN_NAMES = ("full_conversation", "current_output", "updated_history")
+    FUNCTION = "chat"
+    CATEGORY = "mty🦉node/🦉openai_api"
+
+    def chat(self, api_settings, model, user_input, temperature, max_tokens, clear_history, system_prompt=None, external_history=None, image=None):
+        if self.client is None:
+            self.client = openai.OpenAI(
+                base_url=api_settings["base_url"],
+                api_key=api_settings["api_key"]
+            )
+
+        # 处理外部历史
+        if external_history:
+            try:
+                external_messages = json.loads(external_history)
+            except json.JSONDecodeError:
+                return ("Error: Invalid external history format.", "Error: Invalid external history format.", json.dumps([]))
+        else:
+            external_messages = []
+
+        # 读取或清除缓存的内部历史
+        if clear_history:
+            internal_history = []
+            self.save_cache([])
+        else:
+            internal_history = self.load_cache()
+
+        # 更新系统提示
+        if system_prompt is not None:
+            self.system_prompt = system_prompt
+
+        # 构建消息列表
+        messages = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.extend(external_messages)
+        messages.extend(internal_history)
+
+        # 添加新的用户输入
         if image is not None:
             try:
                 image_content = self.encode_image(image)
-                messages.append({
+                new_message = {
                     "role": "user", 
                     "content": [
                         {"type": "text", "text": user_input},
@@ -79,61 +228,88 @@ class OpenAINode:
                             }
                         }
                     ]
-                })
+                }
             except Exception as e:
-                return (f"Error encoding image: {str(e)}",)
-
+                error_message = f"Error encoding image: {str(e)}"
+                return (self.format_conversation(messages), error_message, json.dumps(messages))
         else:
-            messages.append({"role": "user", "content": user_input})
+            new_message = {"role": "user", "content": user_input}
+
+        messages.append(new_message)
+        internal_history.append(new_message)
 
         try:
-            response = client.chat.completions.create(
+            response = self.client.chat.completions.create(
                 model=model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens
             )
             assistant_response = response.choices[0].message.content
-            return (assistant_response,)
+            
+            # 更新内部历史
+            internal_history.append({"role": "assistant", "content": assistant_response})
+            self.save_cache(internal_history)
+
+            full_conversation = self.format_conversation(messages + [{"role": "assistant", "content": assistant_response}])
+            updated_history = json.dumps(external_messages + internal_history)
+            return (full_conversation, assistant_response, updated_history)
         except Exception as e:
-            return (f"Error: {str(e)}",)
+            error_message = f"API Error: {str(e)}"
+            return (self.format_conversation(messages), error_message, json.dumps(messages))
+
+    def format_conversation(self, messages):
+        formatted = f"=== 完整对话历史 (Node ID: {self.node_id}) ===\n\n"
+        for msg in messages:
+            role = msg['role']
+            content = msg['content']
+            if isinstance(content, list):
+                content = content[0]['text'] + " [包含图像]"
+            formatted += f"{role.capitalize()}: {content}\n"
+            formatted += "-" * 40 + "\n"
+        return formatted
+
+    def load_cache(self):
+        if os.path.exists(self.cache_file):
+            with open(self.cache_file, 'r') as f:
+                return json.load(f)
+        return []
+
+    def save_cache(self, history):
+        with open(self.cache_file, 'w') as f:
+            json.dump(history, f)
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return kwargs.get("clear_history", False) or kwargs.get("system_prompt") is not None or kwargs.get("user_input") != "" or kwargs.get("model") is not None
 
     @staticmethod
     def encode_image(image):
         try:
-            # 如果是张量,转换为numpy数组
             if torch.is_tensor(image):
                 image = image.cpu().numpy()
 
-            # 处理4维张量 (可能是批处理图像或gif帧)
             if len(image.shape) == 4:
-                # 如果是批处理图像,只取第一张
                 image = image[0]
             
-            # 确保图像是3维的 (高度, 宽度, 通道)
             if len(image.shape) == 2:
-                # 灰度图像,增加通道维度
                 image = np.expand_dims(image, axis=-1)
             
-            # 处理通道数
-            if image.shape[-1] == 1:  # 单通道
+            if image.shape[-1] == 1:
                 image = np.repeat(image, 3, axis=-1)
-            elif image.shape[-1] == 4:  # RGBA
-                image = image[..., :3]  # 只保留RGB通道
+            elif image.shape[-1] == 4:
+                image = image[..., :3]
             elif image.shape[-1] != 3:
                 raise ValueError(f"Unsupported number of channels: {image.shape[-1]}")
 
-            # 确保数值范围在0-255之间
             if image.dtype != np.uint8:
                 if image.max() <= 1.0:
                     image = (image * 255).astype(np.uint8)
                 else:
                     image = image.astype(np.uint8)
 
-            # 创建PIL图像
             img = Image.fromarray(image)
 
-            # 保存为JPEG
             buffered = io.BytesIO()
             img.save(buffered, format="JPEG", quality=95)
             img_str = base64.b64encode(buffered.getvalue()).decode()
@@ -141,8 +317,6 @@ class OpenAINode:
             return img_str
         except Exception as e:
             raise ValueError(f"Image encoding failed: {str(e)}")
-
-
 
 class HistoryNode:
     @classmethod
@@ -201,14 +375,22 @@ class MergeHistoryNode:
                     print(f"Warning: Invalid JSON in history: {history}")
         return (json.dumps(merged),)
 
+
+
+# comfyui必须在这里也要注册节点
 NODE_CLASS_MAPPINGS = {
+    "APISettingsNode": APISettingsNode,
     "OpenAINode": OpenAINode,
+    "OpenAIChatNode": OpenAIChatNode,
     "HistoryNode": HistoryNode,
     "MergeHistoryNode": MergeHistoryNode
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "APISettingsNode": "🦉API设置",
     "OpenAINode": "🦉OpenAI API",
+    "OpenAIChatNode": "🦉OpenAI 连续对话",
     "HistoryNode": "🦉历史消息",
     "MergeHistoryNode": "🦉合并历史消息"
 }
+

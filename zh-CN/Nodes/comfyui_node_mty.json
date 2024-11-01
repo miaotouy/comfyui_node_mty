@@ -1,0 +1,85 @@
+{
+    "APISettingsNode": {
+        "title": "🦉API设置",
+        "widgets": {
+            "use_env_vars": "使用环境变量",
+            "base_url": "基础URL",
+            "api_key": "API密钥"
+        },
+        "outputs": {
+            "api_settings": "API设置"
+        },
+        "description": "配置OpenAI API的设置"
+    },
+    "OpenAINode": {
+        "title": "🦉OpenAI API",
+        "widgets": {
+            "model": "模型",
+            "prompt": "提示词",
+            "temperature": "温度",
+            "max_tokens": "最大令牌数",
+            "system_prompt": "系统提示"
+        },
+        "inputs": {
+            "api_settings": "API设置",
+            "history": "聊天历史",
+            "image": "图像"
+        },
+        "outputs": {
+            "response": "响应输出"
+        },
+        "description": "与OpenAI格式的API交互（支持oneapi/newapi的中转），用于文本和图像处理"
+    },
+    "OpenAIChatNode": {
+        "title": "🦉OpenAI 连续对话",
+        "widgets": {
+            "model": "模型",
+            "user_input": "用户输入",
+            "temperature": "温度",
+            "max_tokens": "最大令牌数",
+            "clear_history": "清除历史",
+            "system_prompt": "系统提示"
+        },
+        "inputs": {
+            "api_settings": "API设置",
+            "external_history": "外部历史",
+            "image": "图像"
+        },
+        "outputs": {
+            "full_conversation": "完整对话",
+            "current_output": "当前输出",
+            "updated_history": "更新后的历史"
+        },
+        "description": "进行连续的OpenAI对话，支持历史记录和图像输入"
+    },
+    "HistoryNode": {
+        "title": "🦉历史消息",
+        "widgets": {
+            "role1": "角色1",
+            "content1": "内容1",
+            "role2": "角色2",
+            "content2": "内容2",
+            "role3": "角色3",
+            "content3": "内容3",
+            "role4": "角色4",
+            "content4": "内容4"
+        },
+        "outputs": {
+            "history": "历史消息"
+        },
+        "description": "创建包含最多4轮对话的历史消息"
+    },
+    "MergeHistoryNode": {
+        "title": "🦉合并历史消息",
+        "inputs": {
+            "history1": "历史1",
+            "history2": "历史2",
+            "history3": "历史3",
+            "history4": "历史4"
+        },
+        "outputs": {
+            "history": "合并后的历史"
+        },
+        "description": "合并来自多个历史消息节点的信息"
+    }
+}
