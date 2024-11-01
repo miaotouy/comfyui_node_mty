@@ -1,0 +1,9 @@
+{
+    "You are a helpful assistant.": "You are a helpful assistant.",
+    "Error: OPENAI_API_KEY not found in environment variables.": "Error: OPENAI_API_KEY not found in environment variables.",
+    "Invalid history format": "Invalid history format",
+    "Error in history format: {}": "Error in history format: {}",
+    "Error: {}": "Error: {}",
+    "JSON array of previous messages. Format: [{'role': 'user', 'content': 'Hello'}, {'role': 'assistant', 'content': 'Hi there!'}]": "JSON array of previous messages. Format: [{'role': 'user', 'content': 'Hello'}, {'role': 'assistant', 'content': 'Hi there!'}]",
+    "OpenAI Chat": "OpenAI Chat"
+}

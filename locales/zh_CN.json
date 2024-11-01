@@ -1,0 +1,9 @@
+{
+    "You are a helpful assistant.": "你是一个有帮助的助手。",
+    "Error: OPENAI_API_KEY not found in environment variables.": "错误：在环境变量中未找到 OPENAI_API_KEY。",
+    "Invalid history format": "无效的历史记录格式",
+    "Error in history format: {}": "历史记录格式错误：{}",
+    "Error: {}": "错误：{}",
+    "JSON array of previous messages. Format: [{'role': 'user', 'content': 'Hello'}, {'role': 'assistant', 'content': 'Hi there!'}]": "之前消息的 JSON 数组。格式：[{'role': 'user', 'content': '你好'}, {'role': 'assistant', 'content': '你好！'}]",
+    "OpenAI Chat": "OpenAI 聊天"
+}
