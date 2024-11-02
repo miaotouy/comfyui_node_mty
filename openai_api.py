@@ -245,9 +245,13 @@ class OpenAIChatNode:
                 temperature=temperature,
                 max_tokens=max_tokens
             )
-            assistant_response = response.choices[0].message.content
+            assistant_response = response.choices[0].message.content.strip()
+
+            # 检查响应是否为空
+            if not assistant_response:
+                return (self.format_conversation(messages), "API返回了空回复，未写入历史记录。", json.dumps(external_messages + internal_history))
             
-            # 更新内部历史
+            # 只有在回复非空时才更新内部历史
             internal_history.append({"role": "assistant", "content": assistant_response})
             self.save_cache(internal_history)
 
@@ -256,7 +260,7 @@ class OpenAIChatNode:
             return (full_conversation, assistant_response, updated_history)
         except Exception as e:
             error_message = f"API Error: {str(e)}"
-            return (self.format_conversation(messages), error_message, json.dumps(messages))
+            return (self.format_conversation(messages), error_message, json.dumps(external_messages + internal_history))
 
     def format_conversation(self, messages):
         formatted = f"=== 完整对话历史 (Node ID: {self.node_id}) ===\n\n"
