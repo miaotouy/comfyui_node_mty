@@ -1,3 +1,4 @@
+
 # comfyui_node_mty
 
 ## 我自己用的节点
@@ -13,8 +14,9 @@ ComfyUI Node MTY 是一个为 ComfyUI 设计的自定义节点集合，主要用
 目前，ComfyUI Node MTY 提供以下节点：
 
 1. **OpenAI API 节点**：与 OpenAI 的 API 进行交互，支持文本和图像处理。
-2. **历史消息节点**：创建包含最多 4 轮对话的历史消息。
-3. **合并历史消息节点**：合并来自多个历史消息节点的信息。
+2. **OpenAI 连续对话节点**: 支持在同一个节点内进行多轮对话，并保存历史记录。
+3. **历史消息节点**：创建包含最多 4 轮对话的历史消息。
+4. **合并历史消息节点**：合并来自多个历史消息节点的信息。
 
 ## 安装
 
@@ -34,9 +36,12 @@ ComfyUI Node MTY 是一个为 ComfyUI 设计的自定义节点集合，主要用
 
 4. 重启 ComfyUI。
 
-可选，将zh-CN\Nodes\comfyui_node_mty.json拷贝到.\ComfyUI\custom_nodes\AIGODLIKE-ComfyUI-Translation\zh-CN\Nodes\comfyui_node_mty.json
-来使用中文翻译。
-因为我自己暂未实现节点自带翻译，就用AIGODLIKE来翻译了。
+5. 可选：中文翻译
+
+    如果您使用 AIGODLIKE-ComfyUI-Translation 插件进行翻译，可以将 `zh-CN\Nodes\comfyui_node_mty.json` 拷贝到 `.\ComfyUI\custom_nodes\AIGODLIKE-ComfyUI-Translation\zh-CN\Nodes\` 目录下，以启用中文翻译。
+    
+    (目前节点本身暂未实现自带翻译功能) 
+
 
 
 ## 使用方法
@@ -48,6 +53,14 @@ ComfyUI Node MTY 是一个为 ComfyUI 设计的自定义节点集合，主要用
 - 可以使用环境变量`OPENAI_API_KEY`和`OPENAI_API_BASE`来设置 API 密钥和 base url。
   
 #### 注意：请不要在分享工作流时在节点中包含 API 密钥和base url。
+
+### OpenAI 连续对话节点
+
+-  允许在同一个节点内进行多轮对话，并在节点内部维护对话历史记录。
+-  每次输入新的用户消息后，节点会将新的消息添加到历史记录中，并将其与之前的对话一起发送到 OpenAI API。
+-  可以使用 "清除历史记录" 选项来重置对话历史。
+-  支持设置系统提示，以便在每次对话开始时为模型提供上下文。
+-  也支持文本和图像输入。
 
 ### 历史消息节点
 
