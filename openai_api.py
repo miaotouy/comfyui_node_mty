@@ -50,12 +50,12 @@ class OpenAINode:
                     "multiline": False,
                     "placeholder": "输入模型名称，如 gpt-4o, gemini-1.5-flash-exp-0827 等"
                 }),
-                "prompt": ("STRING", {"multiline": True}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0, "max": 2, "step": 0.1}),
                 "max_tokens": ("INT", {"default": 512, "min": 1, "max": 16384}),
+                "system_prompt": ("STRING", {"multiline": True}),
+                "prompt": ("STRING", {"multiline": True}),
             },
             "optional": {
-                "system_prompt": ("STRING", {"multiline": True}),
                 "history": ("HISTORY",),
                 "image": ("IMAGE",),
             }
@@ -162,13 +162,13 @@ class OpenAIChatNode:
                     "multiline": False,
                     "placeholder": "输入模型名称，如 gpt-4o, gemini-1.5-flash-exp-0827 等"
                 }),
-                "user_input": ("STRING", {"multiline": True}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0, "max": 2, "step": 0.1}),
                 "max_tokens": ("INT", {"default": 512, "min": 1, "max": 16384}),
+                "system_prompt": ("STRING", {"multiline": True}),
                 "clear_history": ("BOOLEAN", {"default": False}),
+                "user_input": ("STRING", {"multiline": True}),
             },
             "optional": {
-                "system_prompt": ("STRING", {"multiline": True}),
                 "external_history": ("HISTORY",),
                 "image": ("IMAGE",),
             }
