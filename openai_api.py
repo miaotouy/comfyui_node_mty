@@ -9,6 +9,16 @@ import os
 import uuid
 
 class APISettingsNode:
+    """
+    API 设置节点，用于配置 OpenAI API 或其他兼容 API 的连接信息。
+
+    Attributes:
+        use_env_vars (bool): 是否使用环境变量获取 API 密钥和基础 URL。
+        base_url (str): API 基础 URL，默认为 OpenAI API 的地址。
+            可以设置为其他兼容 API 的地址，例如 OneAPI 的 API 地址，
+            用于支持聚合模型接口，例如 GPT-4o、Claude-3-5-sonnet-20241022、gemini-1.5-pro-exp-0827 等。
+        api_key (str): API 密钥。
+    """
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -82,7 +92,7 @@ class OpenAINode:
                 pass
 
         if image is not None:
-            image_content = self.encode_image(image)
+            image_content = ImageProcessor.encode_image(image)
             messages.append({
                 "role": "user",
                 "content": [
@@ -104,43 +114,64 @@ class OpenAINode:
         except Exception as e:
             return (f"Error: {str(e)}",)
 
-
-
+class ImageProcessor:
+    """
+    图像处理工具类，用于处理和编码图像数据。
+    支持处理 Tensor、Numpy array 和 PIL Image 格式的输入。
+    """
+    
     @staticmethod
     def encode_image(image):
+        """
+        将图像编码为 base64 字符串。
+        
+        Args:
+            image: 支持 Tensor、Numpy array 或 PIL Image 格式的图像数据
+            
+        Returns:
+            str: base64 编码的图像字符串
+            
+        Raises:
+            ValueError: 当图像处理失败时抛出异常
+        """
         try:
+            # 转换 Tensor 为 Numpy array
             if torch.is_tensor(image):
                 image = image.cpu().numpy()
 
+            # 处理 batch 维度
             if len(image.shape) == 4:
                 image = image[0]
             
+            # 处理单通道图像
             if len(image.shape) == 2:
                 image = np.expand_dims(image, axis=-1)
             
+            # 标准化通道数
             if image.shape[-1] == 1:
                 image = np.repeat(image, 3, axis=-1)
             elif image.shape[-1] == 4:
                 image = image[..., :3]
             elif image.shape[-1] != 3:
-                raise ValueError(f"Unsupported number of channels: {image.shape[-1]}")
+                raise ValueError(f"不支持的通道数: {image.shape[-1]}")
 
+            # 标准化数据类型和范围
             if image.dtype != np.uint8:
                 if image.max() <= 1.0:
                     image = (image * 255).astype(np.uint8)
                 else:
                     image = image.astype(np.uint8)
 
+            # 转换为 PIL Image 并编码
             img = Image.fromarray(image)
-
             buffered = io.BytesIO()
             img.save(buffered, format="JPEG", quality=95)
             img_str = base64.b64encode(buffered.getvalue()).decode()
             
             return img_str
+            
         except Exception as e:
-            raise ValueError(f"Image encoding failed: {str(e)}")
-
+            raise ValueError(f"图像编码失败: {str(e)}")
 
 class OpenAIChatNode:
     def __init__(self):
@@ -216,7 +247,7 @@ class OpenAIChatNode:
         # 添加新的用户输入
         if image is not None:
             try:
-                image_content = self.encode_image(image)
+                image_content = ImageProcessor.encode_image(image)
                 new_message = {
                     "role": "user", 
                     "content": [
@@ -282,41 +313,6 @@ class OpenAIChatNode:
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         return kwargs.get("clear_history", False) or kwargs.get("system_prompt") is not None or kwargs.get("user_input") != "" or kwargs.get("model") is not None
-
-    @staticmethod
-    def encode_image(image):
-        try:
-            if torch.is_tensor(image):
-                image = image.cpu().numpy()
-
-            if len(image.shape) == 4:
-                image = image[0]
-            
-            if len(image.shape) == 2:
-                image = np.expand_dims(image, axis=-1)
-            
-            if image.shape[-1] == 1:
-                image = np.repeat(image, 3, axis=-1)
-            elif image.shape[-1] == 4:
-                image = image[..., :3]
-            elif image.shape[-1] != 3:
-                raise ValueError(f"Unsupported number of channels: {image.shape[-1]}")
-
-            if image.dtype != np.uint8:
-                if image.max() <= 1.0:
-                    image = (image * 255).astype(np.uint8)
-                else:
-                    image = image.astype(np.uint8)
-
-            img = Image.fromarray(image)
-
-            buffered = io.BytesIO()
-            img.save(buffered, format="JPEG", quality=95)
-            img_str = base64.b64encode(buffered.getvalue()).decode()
-            
-            return img_str
-        except Exception as e:
-            raise ValueError(f"Image encoding failed: {str(e)}")
 
 class HistoryNode:
     @classmethod
