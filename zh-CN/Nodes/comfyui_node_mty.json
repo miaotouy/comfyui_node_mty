@@ -16,8 +16,8 @@
         "widgets": {
             "model": "模型",
             "prompt": "提示词",
-            "temperature": "温度",
-            "max_tokens": "最大令牌数",
+            "temperature": "温度 | temperature",
+            "max_tokens": "最大令牌数 | max_tokens",
             "system_prompt": "系统提示"
         },
         "inputs": {
@@ -35,8 +35,8 @@
         "widgets": {
             "model": "模型",
             "user_input": "用户输入",
-            "temperature": "温度",
-            "max_tokens": "最大令牌数",
+            "temperature": "温度 | temperature",
+            "max_tokens": "最大令牌数 | max_tokens",
             "clear_history": "清除历史",
             "system_prompt": "系统提示"
         },

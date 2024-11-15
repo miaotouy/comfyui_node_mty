@@ -60,12 +60,12 @@ class OpenAINode:
                     "multiline": False,
                     "placeholder": "输入模型名称，如 gpt-4o, gemini-1.5-flash-exp-0827 等"
                 }),
-                "prompt": ("STRING", {"multiline": True}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0, "max": 2, "step": 0.1}),
                 "max_tokens": ("INT", {"default": 512, "min": 1, "max": 16384}),
+                "system_prompt": ("STRING", {"multiline": True}),
+                "prompt": ("STRING", {"multiline": True}),
             },
             "optional": {
-                "system_prompt": ("STRING", {"multiline": True}),
                 "history": ("HISTORY",),
                 "image": ("IMAGE",),
             }
@@ -193,13 +193,13 @@ class OpenAIChatNode:
                     "multiline": False,
                     "placeholder": "输入模型名称，如 gpt-4o, gemini-1.5-flash-exp-0827 等"
                 }),
-                "user_input": ("STRING", {"multiline": True}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0, "max": 2, "step": 0.1}),
                 "max_tokens": ("INT", {"default": 512, "min": 1, "max": 16384}),
+                "system_prompt": ("STRING", {"multiline": True}),
                 "clear_history": ("BOOLEAN", {"default": False}),
+                "user_input": ("STRING", {"multiline": True}),
             },
             "optional": {
-                "system_prompt": ("STRING", {"multiline": True}),
                 "external_history": ("HISTORY",),
                 "image": ("IMAGE",),
             }
@@ -276,9 +276,13 @@ class OpenAIChatNode:
                 temperature=temperature,
                 max_tokens=max_tokens
             )
-            assistant_response = response.choices[0].message.content
+            assistant_response = response.choices[0].message.content.strip()
+
+            # 检查响应是否为空
+            if not assistant_response:
+                return (self.format_conversation(messages), "API返回了空回复，未写入历史记录。", json.dumps(external_messages + internal_history))
             
-            # 更新内部历史
+            # 只有在回复非空时才更新内部历史
             internal_history.append({"role": "assistant", "content": assistant_response})
             self.save_cache(internal_history)
 
@@ -287,7 +291,7 @@ class OpenAIChatNode:
             return (full_conversation, assistant_response, updated_history)
         except Exception as e:
             error_message = f"API Error: {str(e)}"
-            return (self.format_conversation(messages), error_message, json.dumps(messages))
+            return (self.format_conversation(messages), error_message, json.dumps(external_messages + internal_history))
 
     def format_conversation(self, messages):
         formatted = f"=== 完整对话历史 (Node ID: {self.node_id}) ===\n\n"
